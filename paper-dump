@@ -1,0 +1,84 @@
+#!/bin/bash
+
+export SUCCESS=0
+export FAILURE=1
+
+dpi2px()
+{
+	local dpi="${1}"
+	local inch="$( cat )"
+	echo "${dpi} * ${inch}" | bc
+}
+
+mm2inch()
+{
+	# 1mm = 0,0393701in
+	local mm="$( cat )"
+	echo "0.0393701 * ${mm}" | bc
+}
+
+ceil()
+{
+	echo "$( python -c "from math import ceil; print ceil($( cat ))" ) / 1" | bc
+}
+
+mm2px()
+{
+	local mm="$( cat )"
+	local dpi="${1}"
+	echo "${mm}" | mm2inch | dpi2px "${dpi}" | ceil
+}
+
+a4_width_px()
+{
+	local dpi="${1}"
+	echo "${A4_WIDTH_MM}" | mm2px "${dpi}"
+}
+
+a4_height_px()
+{
+	local dpi="${1}"
+	echo "${A4_HEIGHT_MM}" | mm2px "${dpi}"
+}
+
+export DPI="72"
+
+export A4_WIDTH_MM="210"
+export A4_WIDTH_PX="$( echo "${A4_WIDTH_MM}" | mm2px "${DPI}" )"
+export A4_HEIGHT_MM="297"
+export A4_HEIGHT_PX="$( echo "${A4_HEIGHT_MM}" | mm2px "${DPI}" )"
+
+#echo "${A4_HEIGHT_PX}x${A4_WIDTH_PX}"
+
+export MODULE_PX="5"
+export MARGIN_PX="10"
+
+paperdump_backup()
+{
+	dmtxwrite -f "PNG" -m ${MARGIN_PX} -d ${MODULE_PX} | \
+		convert png:- -interpolate "Nearest" -filter "Point" -resize "${A4_WIDTH_PX}x${A4_WIDTH_PX}" -gravity "center" -extent "${A4_WIDTH_PX}x${A4_HEIGHT_PX}" -page a4 pdf:-
+	return ${SUCCESS}
+}
+
+paperdump_restore()
+{
+	convert pdf:- png:- |\
+		dmtxread
+	return ${FAILURE}
+}
+
+main()
+{
+	case "${1}" in
+		"backup")
+			paperdump_backup
+			;;
+
+		"restore")
+			paperdump_restore
+			;;
+	esac
+
+}
+
+main "${@}"
